@@ -29,6 +29,8 @@ import BackupManagementPage from './pages/BackupManagementPage';
 import AlertsManagementPage from './pages/AlertsManagementPage';
 import MessagesSettingsPage from './pages/MessagesSettingsPage';
 import PendingUpdatesPage from './pages/PendingUpdatesPage';
+import ReliefManagementPage from './pages/ReliefManagementPage';
+import FamilyJoinRequestsPage from './pages/FamilyJoinRequestsPage';
 
 interface NavItem {
   id: string;
@@ -100,6 +102,7 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
       children: [
         { id: 'packages-list', name: 'قوالب الطرود', icon: Package },
         { id: 'bulk-tasks', name: 'المهام الجماعية', icon: Send },
+        { id: 'relief-management', name: 'إدارة المساعدات', icon: Heart },
         { id: 'tracking', name: 'تتبع الإرسالات', icon: Truck },
         { id: 'distribution-reports', name: 'تقارير التوزيع', icon: BarChart3 }
       ]
@@ -110,7 +113,8 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
       icon: Building2,
       children: [
         { id: 'organizations', name: 'إدارة المؤسسات', icon: Building2 },
-        { id: 'families', name: 'إدارة العائلات', icon: Heart }
+        { id: 'families', name: 'إدارة العائلات', icon: Heart },
+        { id: 'family-join-requests', name: 'طلبات انضمام العائلات', icon: UserPlus }
       ]
     },
     {
@@ -279,8 +283,10 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
       'packages-list': 'إنشاء وإدارة قوالب الطرود وعمليات التوزيع',
       'tracking': 'تتبع حالة الطرود والإرسالات',
       'distribution-reports': 'تقارير مفصلة عن عمليات التوزيع ومتابعة دفعات التوزيع',
+      'relief-management': 'تتبع وإدارة توزيع المساعدات على المستفيدين',
       'organizations': 'إدارة المؤسسات الخيرية والإنسانية',
       'families': 'إدارة العائلات والمبادرين الفرديين',
+      'family-join-requests': 'مراجعة واعتماد طلبات انضمام المستفيدين للعائلات',
       'couriers': 'إدارة المندوبين ومتابعة أدائهم',
       'tasks': 'إدارة مهام التوزيع والمتابعة',
       'reports': 'تقارير شاملة وإحصائيات مفصلة',
@@ -516,6 +522,24 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
               </button>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    // Relief Management page
+    if (activeTab === 'relief-management') {
+      return (
+        <div className="space-y-6">
+          <ReliefManagementPage />
+        </div>
+      );
+    }
+
+    // Family Join Requests page
+    if (activeTab === 'family-join-requests') {
+      return (
+        <div className="space-y-6">
+          <FamilyJoinRequestsPage />
         </div>
       );
     }
