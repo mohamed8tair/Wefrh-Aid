@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Calendar, Shield, Save, X, AlertTriangle, CheckCircle, Users, Briefcase, Heart, DollarSign, FileText, Home } from 'lucide-react';
+import { User, Phone, MapPin, Calendar, Shield, Save, X, AlertTriangle, CheckCircle, Users, Briefcase, Heart, DollarSign, FileText, Home, Lock, Key } from 'lucide-react';
 import { type Beneficiary } from '../data/mockData';
 import { useErrorLogger } from '../utils/errorLogger';
 import { Button, Card, Input, Badge } from './ui';
+import { useAuth } from '../context/AuthContext';
+import { useFieldProtection } from '../hooks/useFieldProtection';
+import OTPVerificationModal from './modals/OTPVerificationModal';
 
 interface BeneficiaryFormProps {
   beneficiary?: Beneficiary | null;
@@ -34,7 +37,9 @@ interface FormData {
 
 export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: BeneficiaryFormProps) {
   const { logError, logInfo } = useErrorLogger();
-  
+  const { loggedInUser } = useAuth();
+  const { canEditField, getFieldProtection } = useFieldProtection();
+
   const [formData, setFormData] = useState<FormData>({
     name: '',
     fullName: '',
@@ -60,6 +65,9 @@ export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: Benef
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [otpField, setOtpField] = useState<string | null>(null);
+  const [pendingFieldChange, setPendingFieldChange] = useState<{ field: string; value: any } | null>(null);
+  const [showOTPModal, setShowOTPModal] = useState(false);
 
   const isEditing = !!beneficiary;
 
@@ -104,17 +112,73 @@ export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: Benef
   ];
 
   const handleInputChange = (field: string, value: any) => {
+    if (!loggedInUser) {
+      setOperationError('يجب تسجيل الدخول أولاً');
+      return;
+    }
+
+    const fieldMap: { [key: string]: string } = {
+      'nationalId': 'national_id',
+      'name': 'name',
+      'fullName': 'full_name',
+      'dateOfBirth': 'date_of_birth',
+      'phone': 'phone',
+      'address': 'address',
+      'profession': 'profession',
+      'notes': 'notes'
+    };
+
+    const dbFieldName = fieldMap[field] || field;
+    const protection = getFieldProtection(dbFieldName);
+
+    if (protection && !protection.canEdit) {
+      setOperationError(`ليس لديك صلاحية لتعديل ${protection.fieldName}. يتطلب مستوى صلاحية ${protection.level}`);
+      return;
+    }
+
+    if (protection?.requiresOTP && isEditing) {
+      setPendingFieldChange({ field, value });
+      setOtpField(dbFieldName);
+      setShowOTPModal(true);
+      return;
+    }
+
+    if (protection?.requiresApproval && isEditing) {
+      setOperationError(`تعديل ${protection.fieldName} يتطلب موافقة المدير`);
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    
+
     if (errors[field]) {
       setErrors(prev => ({
         ...prev,
         [field]: ''
       }));
     }
+  };
+
+  const handleOTPVerified = () => {
+    if (pendingFieldChange) {
+      setFormData(prev => ({
+        ...prev,
+        [pendingFieldChange.field]: pendingFieldChange.value
+      }));
+
+      if (errors[pendingFieldChange.field]) {
+        setErrors(prev => ({
+          ...prev,
+          [pendingFieldChange.field]: ''
+        }));
+      }
+
+      setPendingFieldChange(null);
+      setOtpField(null);
+    }
+    setShowOTPModal(false);
   };
 
   const handleDetailedAddressChange = (field: string, value: string) => {
@@ -277,35 +341,60 @@ export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: Benef
           </h3>
           
           <div className="grid md:grid-cols-2 gap-6">
-            <Input
-              label="الاسم الأول *"
+            <div>
+              <Input
+                label="الاسم الأول *"
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="مثال: محمد"
-              error={errors.name}
-              required
-            />
+                error={errors.name}
+                required
+              />
+              {getFieldProtection('name')?.level && (
+                <p className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Lock className="w-3 h-3 ml-1" />
+                  مستوى الحماية: {getFieldProtection('name')?.level}
+                </p>
+              )}
+            </div>
 
-            <Input
-              label="الاسم الكامل *"
+            <div>
+              <Input
+                label="الاسم الكامل *"
                 type="text"
                 value={formData.fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
                 placeholder="مثال: محمد أحمد عبدالله الغزاوي"
-              error={errors.fullName}
-              required
-            />
+                error={errors.fullName}
+                required
+              />
+              {getFieldProtection('full_name')?.level && (
+                <p className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Lock className="w-3 h-3 ml-1" />
+                  مستوى الحماية: {getFieldProtection('full_name')?.level}
+                </p>
+              )}
+            </div>
 
-            <Input
-              label="رقم الهوية الوطنية *"
+            <div>
+              <Input
+                label="رقم الهوية الوطنية *"
                 type="text"
                 value={formData.nationalId}
                 onChange={(e) => handleInputChange('nationalId', e.target.value)}
                 placeholder="مثال: 900123456"
-              error={errors.nationalId}
-              required
-            />
+                error={errors.nationalId}
+                required
+              />
+              {getFieldProtection('national_id')?.level && (
+                <p className="text-xs text-red-600 mt-1 flex items-center">
+                  <Shield className="w-3 h-3 ml-1" />
+                  حقل حساس جداً - مستوى الحماية: {getFieldProtection('national_id')?.level}
+                  {getFieldProtection('national_id')?.requiresOTP && ' - يتطلب OTP'}
+                </p>
+              )}
+            </div>
 
             <Input
               label="تاريخ الميلاد *"
@@ -330,15 +419,24 @@ export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: Benef
               </select>
             </div>
 
-            <Input
-              label="رقم الهاتف *"
+            <div>
+              <Input
+                label="رقم الهاتف *"
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="مثال: 0591234567"
-              error={errors.phone}
-              required
-            />
+                error={errors.phone}
+                required
+              />
+              {getFieldProtection('phone')?.level && (
+                <p className="text-xs text-gray-500 mt-1 flex items-center">
+                  <Lock className="w-3 h-3 ml-1" />
+                  مستوى الحماية: {getFieldProtection('phone')?.level}
+                  {getFieldProtection('phone')?.requiresOTP && ' - يتطلب OTP'}
+                </p>
+              )}
+            </div>
           </div>
         </Card>
 
@@ -545,11 +643,32 @@ export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: Benef
                   <AlertTriangle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
                   <span>الأشخاص المتزوجين يجب أن يكونوا أرباب أسر منفصلة</span>
                 </li>
+                {isEditing && (
+                  <li className="flex items-start space-x-2 space-x-reverse">
+                    <Key className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <span>بعض الحقول الحساسة تتطلب تحقق OTP عند التعديل</span>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
         </Card>
       </form>
+
+      {/* OTP Verification Modal */}
+      {showOTPModal && otpField && (
+        <OTPVerificationModal
+          isOpen={showOTPModal}
+          onClose={() => {
+            setShowOTPModal(false);
+            setOtpField(null);
+            setPendingFieldChange(null);
+          }}
+          onVerified={handleOTPVerified}
+          phoneNumber={formData.phone}
+          fieldName={otpField}
+        />
+      )}
     </div>
   );
 }

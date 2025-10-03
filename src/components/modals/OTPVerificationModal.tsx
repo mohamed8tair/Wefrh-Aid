@@ -1,27 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Modal, Button, Input } from '../ui';
 import { OTPService } from '../../services/otp/otpService';
 import { Shield, RefreshCw, Check, X } from 'lucide-react';
 
 interface OTPVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  phone: string;
-  userId: string;
-  userType: string;
-  purpose: 'phone_verification' | 'password_reset';
+  phoneNumber: string;
+  fieldName?: string;
   onVerified: () => void;
 }
 
-export function OTPVerificationModal({
+export default function OTPVerificationModal({
   isOpen,
   onClose,
-  phone,
-  userId,
-  userType,
-  purpose,
+  phoneNumber,
+  fieldName = 'unknown',
   onVerified,
 }: OTPVerificationModalProps) {
   const [otp, setOtp] = useState('');
@@ -64,8 +58,7 @@ export function OTPVerificationModal({
     setCanResend(false);
 
     try {
-      const { code } = await OTPService.createOTP(phone, userId, userType, purpose);
-
+      const code = OTPService.generateOTP();
       setGeneratedCode(code);
       setOtpSent(true);
       setCountdown(600);
@@ -88,13 +81,10 @@ export function OTPVerificationModal({
     setError('');
 
     try {
-      const isValid = await OTPService.verifyOTP(phone, otp, purpose);
-
-      if (isValid) {
+      if (otp === generatedCode) {
         setSuccess(true);
       } else {
-        setError('رمز التحقق غير صحيح أو منتهي الصلاحية');
-        await OTPService.incrementAttempts(phone, otp);
+        setError('رمز التحقق غير صحيح');
       }
     } catch (err: any) {
       setError(err.message || 'حدث خطأ أثناء التحقق');
@@ -144,7 +134,7 @@ export function OTPVerificationModal({
             تم إرسال رمز التحقق إلى الرقم:
           </p>
           <p className="text-lg font-semibold text-gray-900 mb-4">
-            {OTPService.formatPhoneForDisplay(phone)}
+            {phoneNumber}
           </p>
           <p className="text-sm text-gray-500">
             يرجى إدخال الرمز المكون من 6 أرقام

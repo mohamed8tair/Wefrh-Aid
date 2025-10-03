@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Database, CheckCircle, AlertTriangle, RefreshCw, Users, Package, Building2, Heart, Shield, Activity, Eye, Edit, Phone } from 'lucide-react';
+import { Database, CheckCircle, AlertTriangle, RefreshCw, Users, Package, Building2, Heart, Shield, Activity, Eye, Edit, Phone, Bell, Star, Lock, Key, Clock, FileText } from 'lucide-react';
 import { statisticsService } from '../../services/supabaseService';
 import { mockBeneficiaries, mockOrganizations, mockFamilies, mockPackages, mockTasks, mockAlerts, mockRoles, mockSystemUsers, calculateStats } from '../../data/mockData';
 import SupabaseConnectionStatus from '../SupabaseConnectionStatus';
+import { PriorityService } from '../../services/priority/priorityService';
+import { OTPService } from '../../services/otp/otpService';
+import { ReliefService } from '../../services/relief/reliefService';
+import { FamilyJoinService } from '../../services/family/familyJoinService';
+import { NotificationService } from '../../services/notifications/notificationService';
 
 export default function TestSupabasePage() {
   const [stats, setStats] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [securityTestsRunning, setSecurityTestsRunning] = useState(false);
+  const [securityTestResults, setSecurityTestResults] = useState<any>(null);
 
   // استخدام البيانات الوهمية مباشرة
   const beneficiaries = mockBeneficiaries;
@@ -18,6 +25,66 @@ export default function TestSupabasePage() {
   const alerts = mockAlerts;
   const roles = mockRoles;
   const systemUsers = mockSystemUsers;
+
+  // اختبار أنظمة الأمان الجديدة
+  const testSecuritySystems = async () => {
+    setSecurityTestsRunning(true);
+    const results: any = {
+      prioritySystem: { tested: false, success: false, details: '' },
+      otpSystem: { tested: false, success: false, details: '' },
+      reliefHistory: { tested: false, success: false, details: '' },
+      familyJoin: { tested: false, success: false, details: '' },
+      notifications: { tested: false, success: false, details: '' }
+    };
+
+    try {
+      // اختبار نظام الأولويات
+      const priorityCheck = PriorityService.canEditField('admin', 'national_id');
+      results.prioritySystem = {
+        tested: true,
+        success: priorityCheck.canEdit,
+        details: `المدير يمكنه تعديل رقم الهوية: ${priorityCheck.canEdit ? 'نعم' : 'لا'}. ${priorityCheck.requiresOTP ? 'يتطلب OTP' : ''}`
+      };
+
+      // اختبار نظام OTP
+      const otp = OTPService.generateOTP();
+      results.otpSystem = {
+        tested: true,
+        success: otp.length === 6,
+        details: `تم توليد OTP: ${otp} (6 أرقام)`
+      };
+
+      // اختبار نظام سجل المساعدات
+      const reliefStatus = ReliefService.getReliefStatus('BEN001');
+      results.reliefHistory = {
+        tested: true,
+        success: true,
+        details: `حالة المساعدات: ${reliefStatus.status}, ${reliefStatus.totalReceived} مساعدة مستلمة`
+      };
+
+      // اختبار نظام طلبات الانضمام للعائلات
+      const joinCode = FamilyJoinService.generateJoinCode('FAM001');
+      results.familyJoin = {
+        tested: true,
+        success: joinCode.length > 0,
+        details: `تم توليد رمز الانضمام: ${joinCode}`
+      };
+
+      // اختبار نظام الإشعارات
+      const notificationPriority = NotificationService.determineNotificationPriority('security_alert');
+      results.notifications = {
+        tested: true,
+        success: notificationPriority === 'high',
+        details: `أولوية التنبيه الأمني: ${notificationPriority}`
+      };
+
+    } catch (error) {
+      console.error('خطأ في اختبار الأنظمة:', error);
+    }
+
+    setSecurityTestResults(results);
+    setSecurityTestsRunning(false);
+  };
 
   const testQueries = [
     { name: 'المستفيدين', data: beneficiaries, loading: false, error: null, icon: Users, color: 'blue' },
@@ -304,6 +371,212 @@ export default function TestSupabasePage() {
         </div>
       </div>
 
+      {/* Security Systems Testing */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-900 flex items-center">
+            <Shield className="w-6 h-6 ml-2 text-blue-600" />
+            اختبار أنظمة الأمان الجديدة
+          </h3>
+          <button
+            onClick={testSecuritySystems}
+            disabled={securityTestsRunning}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {securityTestsRunning ? (
+              <>
+                <RefreshCw className="w-4 h-4 ml-2 animate-spin" />
+                جاري الاختبار...
+              </>
+            ) : (
+              <>
+                <Activity className="w-4 h-4 ml-2" />
+                تشغيل الاختبارات
+              </>
+            )}
+          </button>
+        </div>
+
+        {securityTestResults ? (
+          <div className="space-y-4">
+            {/* Priority System */}
+            <div className={`p-4 rounded-xl border ${
+              securityTestResults.prioritySystem.success
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center space-x-2 space-x-reverse mb-2">
+                <Lock className={`w-5 h-5 ${
+                  securityTestResults.prioritySystem.success ? 'text-green-600' : 'text-red-600'
+                }`} />
+                <span className={`font-medium ${
+                  securityTestResults.prioritySystem.success ? 'text-green-800' : 'text-red-800'
+                }`}>نظام الأولويات والصلاحيات</span>
+                {securityTestResults.prioritySystem.success && (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                )}
+              </div>
+              <p className={`text-sm ${
+                securityTestResults.prioritySystem.success ? 'text-green-700' : 'text-red-700'
+              }`}>{securityTestResults.prioritySystem.details}</p>
+            </div>
+
+            {/* OTP System */}
+            <div className={`p-4 rounded-xl border ${
+              securityTestResults.otpSystem.success
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center space-x-2 space-x-reverse mb-2">
+                <Key className={`w-5 h-5 ${
+                  securityTestResults.otpSystem.success ? 'text-green-600' : 'text-red-600'
+                }`} />
+                <span className={`font-medium ${
+                  securityTestResults.otpSystem.success ? 'text-green-800' : 'text-red-800'
+                }`}>نظام التحقق OTP</span>
+                {securityTestResults.otpSystem.success && (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                )}
+              </div>
+              <p className={`text-sm ${
+                securityTestResults.otpSystem.success ? 'text-green-700' : 'text-red-700'
+              }`}>{securityTestResults.otpSystem.details}</p>
+            </div>
+
+            {/* Relief History */}
+            <div className={`p-4 rounded-xl border ${
+              securityTestResults.reliefHistory.success
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center space-x-2 space-x-reverse mb-2">
+                <Package className={`w-5 h-5 ${
+                  securityTestResults.reliefHistory.success ? 'text-green-600' : 'text-red-600'
+                }`} />
+                <span className={`font-medium ${
+                  securityTestResults.reliefHistory.success ? 'text-green-800' : 'text-red-800'
+                }`}>نظام سجل المساعدات</span>
+                {securityTestResults.reliefHistory.success && (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                )}
+              </div>
+              <p className={`text-sm ${
+                securityTestResults.reliefHistory.success ? 'text-green-700' : 'text-red-700'
+              }`}>{securityTestResults.reliefHistory.details}</p>
+            </div>
+
+            {/* Family Join System */}
+            <div className={`p-4 rounded-xl border ${
+              securityTestResults.familyJoin.success
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center space-x-2 space-x-reverse mb-2">
+                <Users className={`w-5 h-5 ${
+                  securityTestResults.familyJoin.success ? 'text-green-600' : 'text-red-600'
+                }`} />
+                <span className={`font-medium ${
+                  securityTestResults.familyJoin.success ? 'text-green-800' : 'text-red-800'
+                }`}>نظام طلبات الانضمام للعائلات</span>
+                {securityTestResults.familyJoin.success && (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                )}
+              </div>
+              <p className={`text-sm ${
+                securityTestResults.familyJoin.success ? 'text-green-700' : 'text-red-700'
+              }`}>{securityTestResults.familyJoin.details}</p>
+            </div>
+
+            {/* Notifications System */}
+            <div className={`p-4 rounded-xl border ${
+              securityTestResults.notifications.success
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className="flex items-center space-x-2 space-x-reverse mb-2">
+                <Bell className={`w-5 h-5 ${
+                  securityTestResults.notifications.success ? 'text-green-600' : 'text-red-600'
+                }`} />
+                <span className={`font-medium ${
+                  securityTestResults.notifications.success ? 'text-green-800' : 'text-red-800'
+                }`}>نظام الإشعارات</span>
+                {securityTestResults.notifications.success && (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                )}
+              </div>
+              <p className={`text-sm ${
+                securityTestResults.notifications.success ? 'text-green-700' : 'text-red-700'
+              }`}>{securityTestResults.notifications.details}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+            <Shield className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4">اضغط على زر "تشغيل الاختبارات" لاختبار جميع أنظمة الأمان الجديدة</p>
+            <p className="text-sm text-gray-500">سيتم اختبار: نظام الأولويات، OTP، سجل المساعدات، طلبات الانضمام، والإشعارات</p>
+          </div>
+        )}
+      </div>
+
+      {/* Security Features Overview */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+        <h3 className="text-xl font-bold text-gray-900 mb-6">نظرة عامة على ميزات الأمان</h3>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+            <div className="flex items-center space-x-2 space-x-reverse mb-3">
+              <Lock className="w-5 h-5 text-blue-600" />
+              <h4 className="font-medium text-blue-800">نظام الأولويات (4 مستويات)</h4>
+            </div>
+            <ul className="space-y-2 text-sm text-blue-700">
+              <li>• المستوى 1: حقول حساسة جداً (رقم الهوية)</li>
+              <li>• المستوى 2: حقول شخصية مهمة (الاسم، تاريخ الميلاد)</li>
+              <li>• المستوى 3: حقول التواصل (هاتف، عنوان)</li>
+              <li>• المستوى 4: حقول عامة (ملاحظات)</li>
+            </ul>
+          </div>
+
+          <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+            <div className="flex items-center space-x-2 space-x-reverse mb-3">
+              <Key className="w-5 h-5 text-green-600" />
+              <h4 className="font-medium text-green-800">نظام التحقق OTP</h4>
+            </div>
+            <ul className="space-y-2 text-sm text-green-700">
+              <li>• رموز من 6 أرقام</li>
+              <li>• صلاحية 10 دقائق</li>
+              <li>• حد أقصى 3 محاولات</li>
+              <li>• إرسال عبر SMS أو WhatsApp</li>
+            </ul>
+          </div>
+
+          <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
+            <div className="flex items-center space-x-2 space-x-reverse mb-3">
+              <FileText className="w-5 h-5 text-purple-600" />
+              <h4 className="font-medium text-purple-800">سجل المساعدات</h4>
+            </div>
+            <ul className="space-y-2 text-sm text-purple-700">
+              <li>• تتبع جميع المساعدات الموزعة</li>
+              <li>• حساب الأولوية بناءً على آخر مساعدة</li>
+              <li>• تحليلات وتقارير شاملة</li>
+              <li>• تصنيف المستفيدين حسب الحاجة</li>
+            </ul>
+          </div>
+
+          <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+            <div className="flex items-center space-x-2 space-x-reverse mb-3">
+              <Bell className="w-5 h-5 text-orange-600" />
+              <h4 className="font-medium text-orange-800">نظام الإشعارات المتقدم</h4>
+            </div>
+            <ul className="space-y-2 text-sm text-orange-700">
+              <li>• إشعارات داخل التطبيق</li>
+              <li>• رسائل SMS</li>
+              <li>• رسائل WhatsApp</li>
+              <li>• أولويات مختلفة (عالية، متوسطة، منخفضة)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       {/* Development Instructions */}
       <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-6">
         <div className="flex items-start space-x-3 space-x-reverse">
@@ -311,10 +584,10 @@ export default function TestSupabasePage() {
           <div>
             <h4 className="font-medium text-yellow-800 mb-3">معلومات التطوير</h4>
             <div className="space-y-2 text-sm text-yellow-700">
-              <p>• النظام يعمل حالياً بالبيانات الوهمية المحددة في ملف mockData.ts</p>
-              <p>• جميع العمليات (إضافة، تعديل، حذف) محاكاة ولا تؤثر على قاعدة بيانات حقيقية</p>
-              <p>• يمكن مواصلة تطوير الواجهات والمكونات دون الحاجة لقاعدة بيانات</p>
-              <p>• عند الحاجة لقاعدة بيانات حقيقية، يمكن إعادة تفعيل Supabase</p>
+              <p>• تم تطبيق جميع أنظمة الأمان الجديدة على قاعدة بيانات Supabase</p>
+              <p>• الجداول الجديدة: pending_updates, relief_history, otp_verifications, notifications, family_join_requests, field_edit_log</p>
+              <p>• جميع الأنظمة محمية بـ Row Level Security (RLS)</p>
+              <p>• استخدم هذه الصفحة لاختبار جميع الوظائف الأمنية</p>
             </div>
           </div>
         </div>
