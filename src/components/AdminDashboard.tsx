@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAlerts } from '../context/AlertsContext';
 import { useErrorLogger } from '../utils/errorLogger';
 import { statisticsService, alertsService } from '../services/supabaseService';
-import { Shield, Users, Package, Truck, Bell, BarChart3, Settings, MapPin, Calendar, FileText, AlertTriangle, CheckCircle, Clock, Plus, Search, Filter, Download, Eye, Edit, Phone, Star, UserPlus, Building2, Heart, TrendingUp, Activity, Database, MessageSquare, UserCheck, Crown, Key, Lock, ChevronRight, RefreshCw, LogOut } from 'lucide-react';
+import { Shield, Users, Package, Truck, Bell, BarChart3, Settings, MapPin, Calendar, FileText, AlertTriangle, CheckCircle, Clock, Plus, Search, Filter, Download, Eye, CreditCard as Edit, Phone, Star, UserPlus, Building2, Heart, TrendingUp, Activity, Database, MessageSquare, UserCheck, Crown, Key, Lock, ChevronRight, RefreshCw, LogOut } from 'lucide-react';
 import { Send } from 'lucide-react';
 import { mockBeneficiaries, mockPackages, calculateStats, mockOrganizations, mockFamilies } from '../data/mockData';
 import PermissionsManagement from './PermissionsManagement';
