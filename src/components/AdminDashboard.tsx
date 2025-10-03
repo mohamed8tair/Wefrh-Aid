@@ -28,6 +28,7 @@ import SystemSettingsPage from './pages/SystemSettingsPage';
 import BackupManagementPage from './pages/BackupManagementPage';
 import AlertsManagementPage from './pages/AlertsManagementPage';
 import MessagesSettingsPage from './pages/MessagesSettingsPage';
+import PendingUpdatesPage from './pages/PendingUpdatesPage';
 
 interface NavItem {
   id: string;
@@ -135,6 +136,7 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
       name: 'الإعدادات',
       icon: Settings,
       children: [
+        { id: 'pending-updates', name: 'التعديلات المعلقة', icon: Clock },
         { id: 'permissions', name: 'إدارة الصلاحيات', icon: Shield },
         { id: 'messages', name: 'إعدادات الرسائل', icon: MessageSquare },
         { id: 'system', name: 'إعدادات النظام', icon: Settings },
@@ -915,6 +917,23 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
             </div>
           </div>
           <MessagesSettingsPage />
+        </div>
+      );
+    }
+
+    if (activeTab === 'pending-updates') {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center space-x-4 space-x-reverse">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+              <IconComponent className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">التعديلات المعلقة</h2>
+              <p className="text-gray-600 mt-1">مراجعة والموافقة على التعديلات المقترحة</p>
+            </div>
+          </div>
+          <PendingUpdatesPage />
         </div>
       );
     }
