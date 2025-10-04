@@ -1,24 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useErrorLogger } from '../utils/errorLogger';
+import { supabase } from '../lib/supabaseClient';
 
 export const useSupabaseConnection = () => {
-  const [isConnected, setIsConnected] = useState<boolean | null>(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>('النظام يعمل بالبيانات الوهمية');
-  const { logInfo } = useErrorLogger();
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { logInfo, logError } = useErrorLogger();
+
+  const checkConnection = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error: dbError } = await supabase
+        .from('beneficiaries')
+        .select('count', { count: 'exact', head: true });
+
+      if (dbError) {
+        setError(dbError.message);
+        setIsConnected(false);
+        logError(dbError.message, 'useSupabaseConnection');
+      } else {
+        setIsConnected(true);
+        setError(null);
+        logInfo('تم الاتصال بقاعدة البيانات بنجاح', 'useSupabaseConnection');
+      }
+    } catch (err: any) {
+      setError(err.message || 'فشل الاتصال');
+      setIsConnected(false);
+      logError(err.message, 'useSupabaseConnection');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [logInfo, logError]);
 
   useEffect(() => {
-    logInfo('النظام يعمل بالبيانات الوهمية', 'useSupabaseConnection');
-  }, [logInfo]);
+    checkConnection();
+  }, [checkConnection]);
 
   const retryConnection = useCallback(async () => {
-    logInfo('النظام يعمل بالبيانات الوهمية', 'useSupabaseConnection');
-  }, [logInfo]);
+    await checkConnection();
+  }, [checkConnection]);
 
   return {
-    isConnected: false,
-    isLoading: false,
-    error: 'النظام يعمل بالبيانات الوهمية',
+    isConnected,
+    isLoading,
+    error,
     retryConnection
   };
 };
@@ -30,55 +56,148 @@ export const useSupabaseQuery = <T>(
 ) => {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>('استخدم البيانات الوهمية');
-  const { logInfo } = useErrorLogger();
+  const [error, setError] = useState<string | null>(null);
+  const { logInfo, logError } = useErrorLogger();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let queryBuilder = supabase.from(table).select('*');
+
+      if (query) {
+        queryBuilder = queryBuilder.or(query);
+      }
+
+      const { data: result, error: dbError } = await queryBuilder;
+
+      if (dbError) {
+        setError(dbError.message);
+        logError(`خطأ في جلب ${table}: ${dbError.message}`, 'useSupabaseQuery');
+      } else {
+        setData(result as T[]);
+        logInfo(`تم جلب ${result?.length || 0} سجل من ${table}`, 'useSupabaseQuery');
+      }
+    } catch (err: any) {
+      setError(err.message);
+      logError(`خطأ في ${table}: ${err.message}`, 'useSupabaseQuery');
+    } finally {
+      setLoading(false);
+    }
+  }, [table, query, logInfo, logError]);
 
   useEffect(() => {
-    logInfo(`استعلام ${table} - استخدم البيانات الوهمية`, 'useSupabaseQuery');
-  }, [table, logInfo]);
+    fetchData();
+  }, [fetchData, ...dependencies]);
 
-  const refetch = async () => {
-    logInfo(`إعادة جلب ${table} - استخدم البيانات الوهمية`, 'useSupabaseQuery');
-  };
+  const refetch = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
 
-  return { data: [], loading: false, error: 'استخدم البيانات الوهمية', refetch };
+  return { data, loading, error, refetch };
 };
 
 export const useSupabaseInsert = <T>(table: string) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>('استخدم البيانات الوهمية');
-  const { logInfo } = useErrorLogger();
+  const [error, setError] = useState<string | null>(null);
+  const { logInfo, logError } = useErrorLogger();
 
   const insert = async (data: T): Promise<boolean> => {
-    logInfo(`إدراج في ${table} - استخدم البيان الوهمية`, 'useSupabaseInsert');
-    return false;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: dbError } = await supabase
+        .from(table)
+        .insert(data as any);
+
+      if (dbError) {
+        setError(dbError.message);
+        logError(`خطأ في الإدراج في ${table}: ${dbError.message}`, 'useSupabaseInsert');
+        return false;
+      }
+
+      logInfo(`تم الإدراج في ${table} بنجاح`, 'useSupabaseInsert');
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      logError(`خطأ في ${table}: ${err.message}`, 'useSupabaseInsert');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return { insert, loading: false, error: 'استخدم البيانات الوهمية' };
+  return { insert, loading, error };
 };
 
 export const useSupabaseUpdate = <T>(table: string) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>('استخدم البيانات الوهمية');
-  const { logInfo } = useErrorLogger();
+  const [error, setError] = useState<string | null>(null);
+  const { logInfo, logError } = useErrorLogger();
 
   const update = async (id: string, data: Partial<T>): Promise<boolean> => {
-    logInfo(`تحديث في ${table} - استخدم البيانات الوهمية`, 'useSupabaseUpdate');
-    return false;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: dbError } = await supabase
+        .from(table)
+        .update(data as any)
+        .eq('id', id);
+
+      if (dbError) {
+        setError(dbError.message);
+        logError(`خطأ في التحديث في ${table}: ${dbError.message}`, 'useSupabaseUpdate');
+        return false;
+      }
+
+      logInfo(`تم التحديث في ${table} بنجاح`, 'useSupabaseUpdate');
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      logError(`خطأ في ${table}: ${err.message}`, 'useSupabaseUpdate');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return { update, loading: false, error: 'استخدم البيانات الوهمية' };
+  return { update, loading, error };
 };
 
 export const useSupabaseDelete = (table: string) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>('استخدم البيانات الوهمية');
-  const { logInfo } = useErrorLogger();
+  const [error, setError] = useState<string | null>(null);
+  const { logInfo, logError } = useErrorLogger();
 
   const deleteRecord = async (id: string): Promise<boolean> => {
-    logInfo(`حذف من ${table} - استخدم البيانات الوهمية`, 'useSupabaseDelete');
-    return false;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error: dbError } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id);
+
+      if (dbError) {
+        setError(dbError.message);
+        logError(`خطأ في الحذف من ${table}: ${dbError.message}`, 'useSupabaseDelete');
+        return false;
+      }
+
+      logInfo(`تم الحذف من ${table} بنجاح`, 'useSupabaseDelete');
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      logError(`خطأ في ${table}: ${err.message}`, 'useSupabaseDelete');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return { deleteRecord, loading: false, error: 'استخدم البيانات الوهمية' };
+  return { deleteRecord, loading, error };
 };
