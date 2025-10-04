@@ -143,8 +143,31 @@ export default function BeneficiaryForm({ beneficiary, onSave, onCancel }: Benef
       return;
     }
 
-    if (protection?.requiresApproval && isEditing) {
-      setOperationError(`تعديل ${protection.fieldName} يتطلب موافقة المدير`);
+    if (protection?.requiresApproval && isEditing && beneficiary) {
+      (async () => {
+        try {
+          const { PriorityService } = await import('../services/priority/priorityService');
+          const currentValue = (beneficiary as any)[field] || '';
+
+          await PriorityService.createPendingUpdate(
+            beneficiary.id,
+            dbFieldName,
+            String(currentValue),
+            String(value),
+            {
+              type: 'admin',
+              id: loggedInUser?.id || 'unknown',
+              name: loggedInUser?.name || 'Unknown User'
+            }
+          );
+
+          setOperationError(`تم إرسال طلب التعديل للمراجعة. سيتم إخطارك عند الموافقة.`);
+          logInfo(`تم إنشاء طلب تعديل معلق للحقل: ${dbFieldName}`, 'BeneficiaryForm');
+        } catch (err) {
+          setOperationError('فشل في إرسال طلب التعديل');
+          logError(err as Error, 'BeneficiaryForm');
+        }
+      })();
       return;
     }
 

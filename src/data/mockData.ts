@@ -1,6 +1,9 @@
 // Mock Database - سيتم استبدالها بقاعدة بيانات حقيقية لاحقاً
 import { v4 as uuidv4 } from 'uuid';
 
+export type { Beneficiary } from '../hooks/useBeneficiaries';
+export type { Organization } from '../hooks/useOrganizations';
+
 export interface User {
   id: string;
   name: string;
@@ -11,30 +14,12 @@ export interface User {
   familyId?: string;
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-  type: string;
-  location: string;
-  contactPerson: string;
-  phone: string;
-  email: string;
-  beneficiariesCount: number;
-  packagesCount: number;
-  completionRate: number;
-  status: 'active' | 'pending' | 'suspended';
-  createdAt: string;
-  packagesAvailable: number;
-  templatesCount: number;
-  isPopular: boolean;
-}
-
 export interface Family {
   id: string;
   name: string;
   headOfFamily: string;
-  headOfFamilyId: string; // ID of the beneficiary who is head of family
-  familyMembers: string[]; // Array of all family member IDs
+  headOfFamilyId: string;
+  familyMembers: string[];
   totalChildren: number;
   totalMedicalCases: number;
   averageAge: number;
@@ -44,50 +29,6 @@ export interface Family {
   completionRate: number;
   location: string;
   createdAt: string;
-}
-
-export interface Beneficiary {
-  id: string;
-  name: string;
-  fullName: string;
-  nationalId: string;
-  dateOfBirth: string;
-  gender: 'male' | 'female';
-  phone: string;
-  address: string;
-  detailedAddress: {
-    governorate: string;
-    city: string;
-    district: string;
-    street: string;
-    additionalInfo: string;
-  };
-  location: { lat: number; lng: number };
-  organizationId?: string;
-  familyId?: string;
-  relationToFamily?: string;
-  // Family hierarchy fields
-  isHeadOfFamily: boolean;
-  spouseId?: string | null;
-  childrenIds: string[];
-  parentId?: string | null; // For children, points to head of family
-  medicalConditions: string[];
-  profession: string;
-  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
-  economicLevel: 'very_poor' | 'poor' | 'moderate' | 'good';
-  membersCount: number;
-  additionalDocuments: { name: string; url: string; type: string; }[];
-  identityStatus: 'verified' | 'pending' | 'rejected';
-  identityImageUrl?: string;
-  status: 'active' | 'pending' | 'suspended';
-  eligibilityStatus: 'eligible' | 'under_review' | 'rejected';
-  lastReceived: string;
-  totalPackages: number;
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-  updatedBy: string;
 }
 
 export interface PackageTemplate {

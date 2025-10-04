@@ -1,6 +1,52 @@
 import { useState, useEffect, useMemo } from 'react';
-import { type Beneficiary, mockBeneficiaries } from '../data/mockData';
+import { supabase } from '../lib/supabaseClient';
 import { useErrorLogger } from '../utils/errorLogger';
+import type { Database } from '../types/database';
+
+type BeneficiaryRow = Database['public']['Tables']['beneficiaries']['Row'];
+
+export interface Beneficiary {
+  id: string;
+  name: string;
+  fullName: string;
+  nationalId: string;
+  dateOfBirth: string;
+  gender: 'male' | 'female';
+  phone: string;
+  address: string;
+  detailedAddress: {
+    governorate: string;
+    city: string;
+    district: string;
+    street: string;
+    additionalInfo: string;
+  };
+  location: { lat: number; lng: number };
+  organizationId?: string;
+  familyId?: string;
+  relationToFamily?: string;
+  profession: string;
+  maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
+  economicLevel: 'very_poor' | 'poor' | 'moderate' | 'good';
+  membersCount: number;
+  additionalDocuments: any[];
+  identityStatus: 'verified' | 'pending' | 'rejected';
+  identityImageUrl?: string;
+  status: 'active' | 'pending' | 'suspended';
+  eligibilityStatus: 'eligible' | 'under_review' | 'rejected';
+  lastReceived: string;
+  totalPackages: number;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+  spouseId?: string;
+  parentId?: string;
+  childrenIds?: string[];
+  isHeadOfFamily?: boolean;
+  medicalConditions?: string[];
+}
 
 interface UseBeneficiariesOptions {
   organizationId?: string;
@@ -23,77 +69,115 @@ interface UseBeneficiariesOptions {
   };
 }
 
+function mapDatabaseRowToBeneficiary(row: BeneficiaryRow): Beneficiary {
+  return {
+    id: row.id,
+    name: row.name,
+    fullName: row.full_name,
+    nationalId: row.national_id,
+    dateOfBirth: row.date_of_birth,
+    gender: row.gender,
+    phone: row.phone,
+    address: row.address,
+    detailedAddress: row.detailed_address || {
+      governorate: '',
+      city: '',
+      district: '',
+      street: '',
+      additionalInfo: ''
+    },
+    location: row.location || { lat: 31.3469, lng: 34.3029 },
+    organizationId: row.organization_id || undefined,
+    familyId: row.family_id || undefined,
+    relationToFamily: row.relation_to_family || undefined,
+    profession: row.profession,
+    maritalStatus: row.marital_status,
+    economicLevel: row.economic_level,
+    membersCount: row.members_count,
+    additionalDocuments: row.additional_documents || [],
+    identityStatus: row.identity_status,
+    identityImageUrl: row.identity_image_url || undefined,
+    status: row.status,
+    eligibilityStatus: row.eligibility_status,
+    lastReceived: row.last_received,
+    totalPackages: row.total_packages,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdBy: row.created_by,
+    updatedBy: row.updated_by,
+  };
+}
+
 export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { logInfo, logError } = useErrorLogger();
 
-  // جلب البيانات
   useEffect(() => {
-    const fetchBeneficiaries = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // محاكاة تأخير الشبكة
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        let filteredData = [...mockBeneficiaries];
-        
-        // فلترة حسب المؤسسة
-        if (options.organizationId) {
-          filteredData = filteredData.filter(b => b.organizationId === options.organizationId);
-        }
-        
-        // فلترة حسب العائلة
-        if (options.familyId) {
-          filteredData = filteredData.filter(b => b.familyId === options.familyId);
-        }
-        
-        setBeneficiaries(filteredData);
-        logInfo(`تم تحميل ${filteredData.length} مستفيد`, 'useBeneficiaries');
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'خطأ في تحميل المستفيدين';
-        setError(errorMessage);
-        logError(new Error(errorMessage), 'useBeneficiaries');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBeneficiaries();
-  }, [options.organizationId, options.familyId, logInfo, logError]);
+  }, [options.organizationId, options.familyId]);
 
-  // فلترة البيانات بناءً على البحث والفلاتر
+  const fetchBeneficiaries = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let query = supabase
+        .from('beneficiaries')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (options.organizationId) {
+        query = query.eq('organization_id', options.organizationId);
+      }
+
+      if (options.familyId) {
+        query = query.eq('family_id', options.familyId);
+      }
+
+      const { data, error: fetchError } = await query;
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      const mappedData = (data || []).map(mapDatabaseRowToBeneficiary);
+      setBeneficiaries(mappedData);
+      logInfo(`تم تحميل ${mappedData.length} مستفيد من Supabase`, 'useBeneficiaries');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'خطأ في تحميل المستفيدين';
+      setError(errorMessage);
+      logError(new Error(errorMessage), 'useBeneficiaries');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredBeneficiaries = useMemo(() => {
     let filtered = [...beneficiaries];
 
-    // فلترة البحث
     if (options.searchTerm) {
       const searchLower = options.searchTerm.toLowerCase();
-      filtered = filtered.filter(b => 
+      filtered = filtered.filter(b =>
         b.name.toLowerCase().includes(searchLower) ||
         b.nationalId.includes(options.searchTerm!) ||
         b.phone.includes(options.searchTerm!)
       );
     }
 
-    // فلترة الحالة
     if (options.statusFilter && options.statusFilter !== 'all') {
       filtered = filtered.filter(b => b.status === options.statusFilter);
     }
 
-    // فلترة حالة الهوية
     if (options.identityStatusFilter && options.identityStatusFilter !== 'all') {
       filtered = filtered.filter(b => b.identityStatus === options.identityStatusFilter);
     }
 
-    // الفلاتر المتقدمة
     if (options.advancedFilters) {
       const filters = options.advancedFilters;
 
-      // فلترة جغرافية
       if (filters.governorate) {
         filtered = filtered.filter(b => b.detailedAddress.governorate === filters.governorate);
       }
@@ -104,7 +188,6 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
         filtered = filtered.filter(b => b.detailedAddress.district === filters.district);
       }
 
-      // فلترة الحالة العائلية
       if (filters.familyStatus) {
         switch (filters.familyStatus) {
           case 'head_of_family':
@@ -134,7 +217,6 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
         }
       }
 
-      // فلترة حجم الأسرة
       if (filters.familySize) {
         switch (filters.familySize) {
           case 'small':
@@ -149,7 +231,6 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
         }
       }
 
-      // فلترة الفئة العمرية
       if (filters.ageGroup) {
         filtered = filtered.filter(b => {
           const age = new Date().getFullYear() - new Date(b.dateOfBirth).getFullYear();
@@ -166,19 +247,16 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
         });
       }
 
-      // فلترة المستوى الاقتصادي
       if (filters.economicLevel) {
         filtered = filtered.filter(b => b.economicLevel === filters.economicLevel);
       }
 
-      // فلترة المهنة
       if (filters.profession) {
-        filtered = filtered.filter(b => 
+        filtered = filtered.filter(b =>
           b.profession.toLowerCase().includes(filters.profession!.toLowerCase())
         );
       }
 
-      // فلترة الحالة الصحية
       if (filters.healthStatus) {
         switch (filters.healthStatus) {
           case 'has_medical':
@@ -189,9 +267,9 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
             break;
           default:
             if (filters.healthStatus) {
-              filtered = filtered.filter(b => 
-                b.medicalConditions && 
-                b.medicalConditions.some(condition => 
+              filtered = filtered.filter(b =>
+                b.medicalConditions &&
+                b.medicalConditions.some(condition =>
                   condition.toLowerCase().includes(filters.healthStatus!.toLowerCase())
                 )
               );
@@ -199,11 +277,10 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
         }
       }
 
-      // فلترة حالة طبية محددة
       if (filters.medicalCondition) {
-        filtered = filtered.filter(b => 
-          b.medicalConditions && 
-          b.medicalConditions.some(condition => 
+        filtered = filtered.filter(b =>
+          b.medicalConditions &&
+          b.medicalConditions.some(condition =>
             condition.toLowerCase().includes(filters.medicalCondition!.toLowerCase())
           )
         );
@@ -212,7 +289,6 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
     return filtered;
   }, [beneficiaries, options.searchTerm, options.statusFilter, options.identityStatusFilter, options.advancedFilters]);
 
-  // إحصائيات
   const statistics = useMemo(() => {
     return {
       total: beneficiaries.length,
@@ -224,50 +300,48 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
     };
   }, [beneficiaries]);
 
-  // وظائف CRUD (محاكاة)
   const addBeneficiary = async (beneficiaryData: Partial<Beneficiary>) => {
     try {
       setLoading(true);
-      
-      // محاكاة إضافة مستفيد جديد
-      const newBeneficiary: Beneficiary = {
-        id: `new-${Date.now()}`,
-        name: beneficiaryData.name || '',
-        fullName: beneficiaryData.fullName || '',
-        nationalId: beneficiaryData.nationalId || '',
-        dateOfBirth: beneficiaryData.dateOfBirth || '',
-        gender: beneficiaryData.gender || 'male',
-        phone: beneficiaryData.phone || '',
-        address: beneficiaryData.address || '',
-        detailedAddress: beneficiaryData.detailedAddress || {
-          governorate: '',
-          city: '',
-          district: '',
-          street: '',
-          additionalInfo: ''
-        },
-        location: beneficiaryData.location || { lat: 31.3469, lng: 34.3029 },
-        organizationId: beneficiaryData.organizationId,
-        familyId: beneficiaryData.familyId,
-        relationToFamily: beneficiaryData.relationToFamily,
-        profession: beneficiaryData.profession || '',
-        maritalStatus: beneficiaryData.maritalStatus || 'single',
-        economicLevel: beneficiaryData.economicLevel || 'poor',
-        membersCount: beneficiaryData.membersCount || 1,
-        additionalDocuments: beneficiaryData.additionalDocuments || [],
-        identityStatus: 'pending',
-        identityImageUrl: beneficiaryData.identityImageUrl,
-        status: 'active',
-        eligibilityStatus: 'under_review',
-        lastReceived: new Date().toISOString().split('T')[0],
-        totalPackages: 0,
-        notes: beneficiaryData.notes || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: 'admin',
-        updatedBy: 'admin'
-      };
 
+      const { data, error: insertError } = await supabase
+        .from('beneficiaries')
+        .insert({
+          name: beneficiaryData.name || '',
+          full_name: beneficiaryData.fullName || '',
+          national_id: beneficiaryData.nationalId || '',
+          date_of_birth: beneficiaryData.dateOfBirth || '',
+          gender: beneficiaryData.gender || 'male',
+          phone: beneficiaryData.phone || '',
+          address: beneficiaryData.address || '',
+          detailed_address: beneficiaryData.detailedAddress,
+          location: beneficiaryData.location,
+          organization_id: beneficiaryData.organizationId,
+          family_id: beneficiaryData.familyId,
+          relation_to_family: beneficiaryData.relationToFamily,
+          profession: beneficiaryData.profession || '',
+          marital_status: beneficiaryData.maritalStatus || 'single',
+          economic_level: beneficiaryData.economicLevel || 'poor',
+          members_count: beneficiaryData.membersCount || 1,
+          additional_documents: beneficiaryData.additionalDocuments || [],
+          identity_status: 'pending',
+          identity_image_url: beneficiaryData.identityImageUrl,
+          status: 'active',
+          eligibility_status: 'under_review',
+          last_received: new Date().toISOString().split('T')[0],
+          total_packages: 0,
+          notes: beneficiaryData.notes || '',
+          created_by: 'admin',
+          updated_by: 'admin'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
+
+      const newBeneficiary = mapDatabaseRowToBeneficiary(data);
       setBeneficiaries(prev => [newBeneficiary, ...prev]);
       logInfo(`تم إضافة مستفيد جديد: ${newBeneficiary.name}`, 'useBeneficiaries');
       return newBeneficiary;
@@ -284,15 +358,34 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
   const updateBeneficiary = async (id: string, updates: Partial<Beneficiary>) => {
     try {
       setLoading(true);
-      
-      setBeneficiaries(prev => 
-        prev.map(b => 
-          b.id === id 
-            ? { ...b, ...updates, updatedAt: new Date().toISOString() }
-            : b
-        )
-      );
-      
+
+      const updateData: any = {};
+      if (updates.name) updateData.name = updates.name;
+      if (updates.fullName) updateData.full_name = updates.fullName;
+      if (updates.nationalId) updateData.national_id = updates.nationalId;
+      if (updates.phone) updateData.phone = updates.phone;
+      if (updates.address) updateData.address = updates.address;
+      if (updates.detailedAddress) updateData.detailed_address = updates.detailedAddress;
+      if (updates.profession) updateData.profession = updates.profession;
+      if (updates.maritalStatus) updateData.marital_status = updates.maritalStatus;
+      if (updates.economicLevel) updateData.economic_level = updates.economicLevel;
+      if (updates.membersCount !== undefined) updateData.members_count = updates.membersCount;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
+      if (updates.status) updateData.status = updates.status;
+      if (updates.identityStatus) updateData.identity_status = updates.identityStatus;
+
+      updateData.updated_by = 'admin';
+
+      const { error: updateError } = await supabase
+        .from('beneficiaries')
+        .update(updateData)
+        .eq('id', id);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      await fetchBeneficiaries();
       logInfo(`تم تحديث المستفيد: ${id}`, 'useBeneficiaries');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'خطأ في تحديث المستفيد';
@@ -307,7 +400,16 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
   const deleteBeneficiary = async (id: string) => {
     try {
       setLoading(true);
-      
+
+      const { error: deleteError } = await supabase
+        .from('beneficiaries')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
       setBeneficiaries(prev => prev.filter(b => b.id !== id));
       logInfo(`تم حذف المستفيد: ${id}`, 'useBeneficiaries');
     } catch (err) {
@@ -321,8 +423,7 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
   };
 
   const refetch = () => {
-    // إعادة تحميل البيانات
-    setBeneficiaries([...mockBeneficiaries]);
+    fetchBeneficiaries();
   };
 
   return {
@@ -338,7 +439,6 @@ export const useBeneficiaries = (options: UseBeneficiariesOptions = {}) => {
   };
 };
 
-// Hook مخصص للحصول على مستفيد واحد
 export const useBeneficiary = (id: string) => {
   const [beneficiary, setBeneficiary] = useState<Beneficiary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -346,13 +446,31 @@ export const useBeneficiary = (id: string) => {
 
   useEffect(() => {
     if (id) {
-      setLoading(true);
-      const found = mockBeneficiaries.find(b => b.id === id);
-      setBeneficiary(found || null);
-      setError(found ? null : 'المستفيد غير موجود');
-      setLoading(false);
+      fetchBeneficiary();
     }
   }, [id]);
+
+  const fetchBeneficiary = async () => {
+    setLoading(true);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('beneficiaries')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      setBeneficiary(data ? mapDatabaseRowToBeneficiary(data) : null);
+      setError(data ? null : 'المستفيد غير موجود');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطأ في تحميل المستفيد');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return { beneficiary, loading, error };
 };
