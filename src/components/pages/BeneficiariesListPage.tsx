@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Users, Search, Filter, Plus, Eye, Edit, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Shield, UserCheck, Download, BadgeCheck, UserPlus, X, MapPin, DollarSign, Heart, RefreshCw, UserX, Hash, Send, Package } from 'lucide-react';
-import { type Beneficiary, type SystemUser } from '../../data/mockData';
-import { useBeneficiaries } from '../../hooks/useBeneficiaries';
+import { type SystemUser } from '../../data/mockData';
+import { useBeneficiaries, type Beneficiary } from '../../hooks/useBeneficiaries';
 import { useAuth } from '../../context/AuthContext';
 import BeneficiaryProfileModal from '../BeneficiaryProfileModal';
 import BeneficiaryForm from '../BeneficiaryForm';
 import { Button, Card, Input, Badge, StatCard, Modal, ConfirmationModal } from '../ui';
 import ExportBeneficiariesModal from '../modals/ExportBeneficiariesModal';
-import { mockBeneficiaries } from '../../data/mockData';
 
 interface BeneficiariesListPageProps {
   onNavigateToIndividualSend?: (beneficiaryId: string) => void;
@@ -49,13 +48,14 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
   });
   
   // استخدام Hook المخصص
-  const { 
-    beneficiaries, 
-    loading, 
-    error, 
-    statistics, 
+  const {
+    beneficiaries,
+    allBeneficiaries,
+    loading,
+    error,
+    statistics,
     updateBeneficiary,
-    refetch 
+    refetch
   } = useBeneficiaries({
     organizationId: loggedInUser?.associatedType === 'organization' ? loggedInUser.associatedId : undefined,
     familyId: loggedInUser?.associatedType === 'family' ? loggedInUser.associatedId : undefined,
@@ -64,17 +64,17 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
     identityStatusFilter: showVerifiedOnly ? 'verified' : 'all'
   });
 
-  // Get unique values for dynamic dropdowns
-  const governorates = [...new Set(mockBeneficiaries.map(b => b.detailedAddress.governorate))];
-  const cities = [...new Set(mockBeneficiaries
+  // Get unique values for dynamic dropdowns from actual data
+  const governorates = [...new Set(allBeneficiaries.map(b => b.detailedAddress.governorate).filter(Boolean))];
+  const cities = [...new Set(allBeneficiaries
     .filter(b => !advancedFilters.governorate || b.detailedAddress.governorate === advancedFilters.governorate)
-    .map(b => b.detailedAddress.city))];
-  const districts = [...new Set(mockBeneficiaries
-    .filter(b => 
+    .map(b => b.detailedAddress.city).filter(Boolean))];
+  const districts = [...new Set(allBeneficiaries
+    .filter(b =>
       (!advancedFilters.governorate || b.detailedAddress.governorate === advancedFilters.governorate) &&
       (!advancedFilters.city || b.detailedAddress.city === advancedFilters.city)
     )
-    .map(b => b.detailedAddress.district))];
+    .map(b => b.detailedAddress.district).filter(Boolean))];
 
   const handleAdvancedFilterChange = (field: string, value: string) => {
     setAdvancedFilters(prev => {
@@ -242,7 +242,7 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
 
   const executeConfirmedAction = async () => {
     if (!confirmAction) return;
-    
+
     try {
       if (confirmAction.type === 'suspend') {
         // تحديث حالة المستفيد إلى موقوف
@@ -251,14 +251,7 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
           updatedAt: new Date().toISOString(),
           updatedBy: 'admin'
         });
-        
-        // تحديث البيانات الوهمية مباشرة للعرض الفوري
-        const beneficiaryIndex = mockBeneficiaries.findIndex(b => b.id === confirmAction.beneficiaryId);
-        if (beneficiaryIndex !== -1) {
-          mockBeneficiaries[beneficiaryIndex].status = 'suspended';
-          mockBeneficiaries[beneficiaryIndex].updatedAt = new Date().toISOString();
-        }
-        
+
         // إعادة تحميل البيانات
         refetch();
       }
@@ -363,12 +356,30 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
   return (
     <div className="space-y-6">
       {/* Data Source Indicator */}
-      <Card className="bg-blue-50 border-blue-200" padding="sm">
-        <div className="flex items-center space-x-2 space-x-reverse text-blue-600">
-          <CheckCircle className="w-4 h-4" />
-          <span className="text-sm font-medium">البيانات الوهمية محملة ({beneficiaries.length} مستفيد)</span>
+      <Card className="bg-green-50 border-green-200" padding="sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 space-x-reverse text-green-700">
+            <CheckCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">متصل بقاعدة البيانات Supabase ({allBeneficiaries.length} مستفيد)</span>
+          </div>
+          {loading && (
+            <div className="flex items-center space-x-2 space-x-reverse text-blue-600">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span className="text-xs">جاري التحميل...</span>
+            </div>
+          )}
         </div>
       </Card>
+
+      {/* Error Display */}
+      {error && (
+        <Card className="bg-red-50 border-red-200" padding="sm">
+          <div className="flex items-center space-x-2 space-x-reverse text-red-700">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-sm font-medium">خطأ: {error}</span>
+          </div>
+        </Card>
+      )}
 
       {/* Actions Bar */}
       <div className="flex items-center justify-between">
@@ -754,21 +765,21 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
             
             {/* Data Source Badge */}
             <div className="flex items-center justify-center space-x-2 space-x-reverse mb-3">
-              <div className="bg-blue-100 p-1.5 rounded-lg">
-                <CheckCircle className="w-4 h-4 text-blue-600" />
+              <div className="bg-green-100 p-1.5 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-green-600" />
               </div>
-              <span className="text-sm font-medium text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
-                البيانات الوهمية
+              <span className="text-sm font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                قاعدة بيانات Supabase
               </span>
             </div>
-            
+
             {/* Count Display */}
             <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm inline-block">
               <div className="flex items-center space-x-4 space-x-reverse">
                 <div className="text-center">
                   <p className="text-sm text-gray-600 mb-1">المعروض حالياً</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {startIndex + 1}-{Math.min(endIndex, beneficiaries.length)}
+                    {beneficiaries.length > 0 ? `${startIndex + 1}-${Math.min(endIndex, beneficiaries.length)}` : '0'}
                   </p>
                 </div>
                 <div className="w-px h-8 bg-gray-300"></div>
@@ -779,7 +790,7 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
                 <div className="w-px h-8 bg-gray-300"></div>
                 <div className="text-center">
                   <p className="text-sm text-gray-600 mb-1">إجمالي النظام</p>
-                  <p className="text-2xl font-bold text-purple-600">{mockBeneficiaries.length}</p>
+                  <p className="text-2xl font-bold text-purple-600">{allBeneficiaries.length}</p>
                 </div>
               </div>
             </div>
