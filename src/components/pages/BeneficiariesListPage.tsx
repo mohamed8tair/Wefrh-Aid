@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Search, Filter, Plus, Eye, Edit, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Shield, UserCheck, Download, BadgeCheck, UserPlus, X, MapPin, DollarSign, Heart, RefreshCw, UserX, Hash, Send, Package } from 'lucide-react';
+import { Users, Search, Filter, Plus, Eye, CreditCard as Edit, Phone, MessageSquare, CheckCircle, Clock, AlertTriangle, Shield, UserCheck, Download, BadgeCheck, UserPlus, X, MapPin, DollarSign, Heart, RefreshCw, UserX, Hash, Send, Package } from 'lucide-react';
 import { type SystemUser } from '../../data/mockData';
 import { useBeneficiaries, type Beneficiary } from '../../hooks/useBeneficiaries';
 import { useAuth } from '../../context/AuthContext';
