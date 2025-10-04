@@ -48,6 +48,20 @@ export function useFieldProtection() {
     return PriorityService.getFieldDescription(fieldName);
   };
 
+  const getFieldProtection = (fieldName: keyof Beneficiary) => {
+    return {
+      level: PriorityService.getFieldLevel(fieldName),
+      canEdit: PriorityService.canEditField(fieldName, userType),
+      requiresApproval: PriorityService.requiresApproval(fieldName),
+      requiresOTP: PriorityService.requiresOTP(fieldName),
+      description: PriorityService.getFieldDescription(fieldName),
+    };
+  };
+
+  const canEditField = (fieldName: keyof Beneficiary): boolean => {
+    return PriorityService.canEditField(fieldName, userType);
+  };
+
   const isAdmin = userType === 'admin';
   const isOrganization = userType === 'organization';
   const isFamily = userType === 'family';
@@ -55,10 +69,12 @@ export function useFieldProtection() {
 
   return {
     canEdit,
+    canEditField,
     needsApproval,
     needsOTP,
     getFieldLevel,
     getFieldDescription,
+    getFieldProtection,
     userType,
     isAdmin,
     isOrganization,

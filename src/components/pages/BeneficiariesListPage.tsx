@@ -360,7 +360,7 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 space-x-reverse text-green-700">
             <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">متصل بقاعدة البيانات Supabase ({allBeneficiaries.length} مستفيد)</span>
+            <span className="text-sm font-medium">متصل بقاعدة بيانات Bolt ({allBeneficiaries.length} مستفيد)</span>
           </div>
           {loading && (
             <div className="flex items-center space-x-2 space-x-reverse text-blue-600">
@@ -769,7 +769,7 @@ export default function BeneficiariesListPage({ onNavigateToIndividualSend, onNa
                 <CheckCircle className="w-4 h-4 text-green-600" />
               </div>
               <span className="text-sm font-medium text-green-700 bg-green-100 px-3 py-1 rounded-full">
-                قاعدة بيانات Supabase
+                قاعدة بيانات Bolt
               </span>
             </div>
 
