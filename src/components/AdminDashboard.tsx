@@ -31,6 +31,8 @@ import MessagesSettingsPage from './pages/MessagesSettingsPage';
 import PendingUpdatesPage from './pages/PendingUpdatesPage';
 import ReliefManagementPage from './pages/ReliefManagementPage';
 import FamilyJoinRequestsPage from './pages/FamilyJoinRequestsPage';
+import CouriersManagementPage from './pages/CouriersManagementPage';
+import AuditLogPage from './pages/AuditLogPage';
 
 interface NavItem {
   id: string;
@@ -1036,6 +1038,40 @@ export default function AdminDashboard({ activeTab, setActiveTab }: AdminDashboa
             </div>
           </div>
           <BackupManagementPage />
+        </div>
+      );
+    }
+
+    if (activeTab === 'couriers') {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center space-x-4 space-x-reverse">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+              <IconComponent className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">{pageInfo.name}</h2>
+              <p className="text-gray-600 mt-1">{pageInfo.description}</p>
+            </div>
+          </div>
+          <CouriersManagementPage />
+        </div>
+      );
+    }
+
+    if (activeTab === 'audit') {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center space-x-4 space-x-reverse">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+              <IconComponent className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">{pageInfo.name}</h2>
+              <p className="text-gray-600 mt-1">{pageInfo.description}</p>
+            </div>
+          </div>
+          <AuditLogPage />
         </div>
       );
     }
