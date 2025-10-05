@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Plus, Search, Filter, MapPin, Phone, Star, TrendingUp, Clock, CheckCircle, XCircle, AlertTriangle, Eye, Edit, Trash2, Navigation, Battery, Signal } from 'lucide-react';
+import { Truck, Plus, Search, Filter, MapPin, Phone, Star, TrendingUp, Clock, CheckCircle, XCircle, AlertTriangle, Eye, CreditCard as Edit, Trash2, Navigation, Battery, Signal } from 'lucide-react';
 import { Card, Button, Badge } from '../ui';
 import { couriersService } from '../../services/supabaseService';
 
